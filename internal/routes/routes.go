@@ -7,9 +7,21 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func NewRoutes(version string, router *gin.Engine, db *database.Queries, redis *redis.Client) {
-	handler := handlers.NewHandler(db, redis)
-	group := router.Group(version + "/")
+type Config struct {
+	Version string
+	Router  *gin.Engine
+	DB      *database.Queries
+	Redis   *redis.Client
+}
 
-	group.GET("/healthcheck", handler.HealthCheck)
+func NewRoutes(cfg *Config) {
+	handler := handlers.NewHandler(cfg.DB, cfg.Redis)
+
+	healthcheck := cfg.Router.Group(cfg.Version + "/healthcheck")
+	users := cfg.Router.Group(cfg.Version + "/users")
+
+	healthcheck.GET("/", handler.HealthCheck)
+
+	users.POST("/login", handler.SignInHandler)
+	users.GET("/logout", handler.LogoutHandler)
 }

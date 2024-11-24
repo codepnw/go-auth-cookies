@@ -10,7 +10,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-var (
+const (
 	envPath = "cmd/dev.env"
 	version = "v1"
 )
@@ -24,7 +24,14 @@ func main() {
 	redis := db.NewRedis()
 	router := gin.Default()
 
-	routes.NewRoutes(version, router, postgres, redis)
+	// Routes Config
+	cfg := routes.Config{
+		Version: version,
+		Router: router,
+		DB: postgres,
+		Redis: redis,
+	}
+	routes.NewRoutes(&cfg)
 
 	port := os.Getenv("APP_PORT")
 	log.Println("server starting on port: ", port)
