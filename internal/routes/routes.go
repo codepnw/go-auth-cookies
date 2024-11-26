@@ -17,10 +17,10 @@ type Config struct {
 func NewRoutes(cfg *Config) {
 	handler := handlers.NewHandler(cfg.DB, cfg.Redis)
 
-	healthcheck := cfg.Router.Group(cfg.Version + "/healthcheck")
+	middleware := cfg.Router.Group(cfg.Version, handler.AuthMiddleware())
 	users := cfg.Router.Group(cfg.Version + "/users")
 
-	healthcheck.GET("/", handler.HealthCheck)
+	middleware.GET("/healthcheck", handler.HealthCheck)
 
 	users.POST("/signin", handler.SignInHandler)
 	users.GET("/logout", handler.LogoutHandler)

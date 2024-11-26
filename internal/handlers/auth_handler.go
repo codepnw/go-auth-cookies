@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/codepnw/go-auth-cookies/internal/models"
+	"github.com/codepnw/go-auth-cookies/internal/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -35,6 +36,15 @@ func (h *handlerConfig) SignInHandler(c *gin.Context) {
 		log.Println(err)
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
+		})
+		return
+	}
+
+	// Validate
+	validateErrors := utils.ValidateUserReq(authReq)
+	if len(validateErrors) > 0 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": validateErrors,
 		})
 		return
 	}
@@ -80,7 +90,7 @@ func (h *handlerConfig) SignInHandler(c *gin.Context) {
 
 	sessionData := map[string]any{
 		"userId": foundUser.ID,
-		"token": tokenStr,
+		"token":  tokenStr,
 	}
 
 	sessionJson, err := json.Marshal(sessionData)
@@ -110,7 +120,7 @@ func (h *handlerConfig) SignInHandler(c *gin.Context) {
 }
 
 func (h *handlerConfig) LogoutHandler(c *gin.Context) {
-	// Retrieve the session from cookies 
+	// Retrieve the session from cookies
 	sessionID, err := c.Cookie("session_id")
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
@@ -131,4 +141,47 @@ func (h *handlerConfig) LogoutHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Logged out successful",
 	})
+}
+
+func (h *handlerConfig) AuthMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		sessionID, err := c.Cookie("session_id")
+		if err != nil || sessionID == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Unauthorized - no session",
+			})
+			return
+		}
+
+		sessionData, err := h.redisClient.Get(c, sessionID).Result()
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Invalid or expired session",
+			})
+			return
+		}
+
+		var data SessionData
+		err = json.Unmarshal([]byte(sessionData), &data)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "Failed to decode the session data",
+			})
+			return
+		}
+
+		token, err := jwt.ParseWithClaims(data.Token, &Claims{}, func(t *jwt.Token) (interface{}, error) {
+			return []byte(os.Getenv("JWT_SECRET")), nil
+		})
+
+		if err != nil || !token.Valid {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
+				"error": "invalid token",
+			})
+			return
+		}
+
+		c.Set("userId", data.UserID)
+		c.Next()
+	}
 }

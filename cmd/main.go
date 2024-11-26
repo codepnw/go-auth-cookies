@@ -6,6 +6,7 @@ import (
 
 	"github.com/codepnw/go-auth-cookies/internal/db"
 	"github.com/codepnw/go-auth-cookies/internal/routes"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 )
@@ -32,6 +33,8 @@ func main() {
 		Redis: redis,
 	}
 	routes.NewRoutes(&cfg)
+
+	router.Use(cors.Default())
 
 	port := os.Getenv("APP_PORT")
 	log.Println("server starting on port: ", port)
