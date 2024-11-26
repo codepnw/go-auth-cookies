@@ -22,6 +22,7 @@ func NewRoutes(cfg *Config) {
 
 	healthcheck.GET("/", handler.HealthCheck)
 
-	users.POST("/login", handler.SignInHandler)
+	users.POST("/signin", handler.SignInHandler)
 	users.GET("/logout", handler.LogoutHandler)
+	users.POST("/signup", handler.SignupHandler)
 }
